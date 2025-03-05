@@ -1,0 +1,101 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Rock Paper Scissors Multiplayer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+      }
+      .choices {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+      }
+      .choice {
+        cursor: pointer;
+        padding: 10px;
+        border: 2px solid #333;
+        border-radius: 5px;
+      }
+      .choice:hover {
+        background-color: #f0f0f0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Rock Paper Scissors</h1>
+    <div id="status"></div>
+    <div class="choices" id="choices" style="display: none">
+      <div class="choice" data-choice="rock">Rock</div>
+      <div class="choice" data-choice="paper">Paper</div>
+      <div class="choice" data-choice="scissors">Scissors</div>
+    </div>
+    <div id="result"></div>
+
+    <script>
+      const socket = io();
+      const playerId = Math.random().toString(36).substr(2, 9);
+      const statusEl = document.getElementById("status");
+      const choicesEl = document.getElementById("choices");
+      const resultEl = document.getElementById("result");
+
+      // Connect to the game
+      socket.on("connect", () => {
+        socket.emit("join_game", { player_id: playerId });
+      });
+
+      // Game joined
+      socket.on("joined_game", (data) => {
+        statusEl.textContent = data.message;
+        choicesEl.style.display = "flex";
+      });
+
+      // Handle choice selection
+      document.querySelectorAll(".choice").forEach((choice) => {
+        choice.addEventListener("click", () => {
+          const playerChoice = choice.getAttribute("data-choice");
+          socket.emit("player_choice", {
+            player_id: playerId,
+            choice: playerChoice,
+          });
+          choicesEl.style.display = "none";
+          statusEl.textContent = "Waiting for opponent...";
+        });
+      });
+
+      // Game result
+      socket.on("game_result", (data) => {
+        let resultMessage = "";
+        if (data.winner === "tie") {
+          resultMessage = "It's a tie!";
+        } else if (data.winner === playerId) {
+          resultMessage = "You won!";
+        } else {
+          resultMessage = "You lost!";
+        }
+
+        resultEl.innerHTML = `
+                Result: ${resultMessage}<br>
+                Your choice: ${data.choices[playerId]}<br>
+                Opponent's choice: ${
+                  Object.keys(data.choices).find((id) => id !== playerId)
+                    ? data.choices[
+                        Object.keys(data.choices).find((id) => id !== playerId)
+                      ]
+                    : "N/A"
+                }
+            `;
+
+        // Reset for next round
+        setTimeout(() => {
+          choicesEl.style.display = "flex";
+          resultEl.textContent = "";
+          statusEl.textContent = "Choose your move!";
+        }, 3000);
+      });
+    </script>
+  </body>
+</html>
