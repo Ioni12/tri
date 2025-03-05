@@ -8,32 +8,44 @@
       body {
         font-family: Arial, sans-serif;
         text-align: center;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
       }
       .choices {
         display: flex;
         justify-content: center;
         gap: 20px;
+        margin-top: 20px;
       }
       .choice {
         cursor: pointer;
         padding: 10px;
         border: 2px solid #333;
         border-radius: 5px;
+        flex-grow: 1;
       }
       .choice:hover {
         background-color: #f0f0f0;
+      }
+      #debug {
+        margin-top: 20px;
+        background-color: #f0f0f0;
+        padding: 10px;
+        text-align: left;
       }
     </style>
   </head>
   <body>
     <h1>Rock Paper Scissors</h1>
-    <div id="status"></div>
+    <div id="status">Connecting...</div>
     <div class="choices" id="choices" style="display: none">
       <div class="choice" data-choice="rock">Rock</div>
       <div class="choice" data-choice="paper">Paper</div>
       <div class="choice" data-choice="scissors">Scissors</div>
     </div>
     <div id="result"></div>
+    <div id="debug"></div>
 
     <script>
       const socket = io();
@@ -41,14 +53,29 @@
       const statusEl = document.getElementById("status");
       const choicesEl = document.getElementById("choices");
       const resultEl = document.getElementById("result");
+      const debugEl = document.getElementById("debug");
+
+      // Debug logging function
+      function debugLog(message) {
+        console.log(message);
+        debugEl.innerHTML += `<div>${message}</div>`;
+      }
 
       // Connect to the game
       socket.on("connect", () => {
+        debugLog("Socket connected");
         socket.emit("join_game", { player_id: playerId });
+      });
+
+      // Connection error
+      socket.on("connect_error", (error) => {
+        debugLog("Connection Error: " + error);
+        statusEl.textContent = "Connection Error: " + error;
       });
 
       // Game joined
       socket.on("joined_game", (data) => {
+        debugLog("Joined Game: " + JSON.stringify(data));
         statusEl.textContent = data.message;
         choicesEl.style.display = "flex";
       });
@@ -57,6 +84,7 @@
       document.querySelectorAll(".choice").forEach((choice) => {
         choice.addEventListener("click", () => {
           const playerChoice = choice.getAttribute("data-choice");
+          debugLog("Player choice: " + playerChoice);
           socket.emit("player_choice", {
             player_id: playerId,
             choice: playerChoice,
@@ -68,6 +96,7 @@
 
       // Game result
       socket.on("game_result", (data) => {
+        debugLog("Game Result: " + JSON.stringify(data));
         let resultMessage = "";
         if (data.winner === "tie") {
           resultMessage = "It's a tie!";
@@ -95,6 +124,12 @@
           resultEl.textContent = "";
           statusEl.textContent = "Choose your move!";
         }, 3000);
+      });
+
+      // Socket disconnection
+      socket.on("disconnect", (reason) => {
+        debugLog("Disconnected: " + reason);
+        statusEl.textContent = "Disconnected: " + reason;
       });
     </script>
   </body>
